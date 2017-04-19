@@ -1,47 +1,74 @@
-#define TRIG_PIN A0
-#define ECHO_PIN A1
+#include <AFMotor.h>  // Motor shield lib
 
+int trigPin = A0;
+int echoPin = A1;
 const float SOS = 0.034; // Speed of sound
-long duration = 0;
-float distance = 0;
-int threshold = 30; // Distance threshold
+
+AF_DCMotor motor1(1, MOTOR12_64KHZ); // 64KHz pwm
+AF_DCMotor motor2(2, MOTOR12_64KHZ); // 64KHz pwm
+AF_DCMotor motor3(3, MOTOR34_64KHZ); // 64KHz pwm
+AF_DCMotor motor4(4, MOTOR34_64KHZ); // 64KHz pwm
 
 void setup() {
-  pinMode(TRIG_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
   Serial.begin(9600);
 }
 
-// Turn left
-void turnLeft() {
-  
+/*
+ * Set the speed of a motor. mSpeed value is between -255 and 255
+ */
+void setMotor(AF_DCMotor motor, int mSpeed) {
+  if(mSpeed > 0) {
+    motor.run(FORWARD); // Lets go forward! 
+  } else if (mSpeed < 0) {
+    motor.run(BACKWARD); // Lets go backward!
+  } else {
+    motor.run(RELEASE); // Stop motor
+  }
+
+  motor.setSpeed(abs(mSpeed));
 }
 
-// Turn right
-void turnRight() {
+/*
+ * Get the distance read by the ultrasonic sensor
+ */
+float getDistance() {
+  long duration = 0;
+  float distance = 0;
   
-}
-
-// Look around
-void scan() {
-  
-}
-
-void loop() {
   // Clears the trigPin
-  digitalWrite(TRIG_PIN, LOW);
+  digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
   
   // Sets the trigPin on HIGH state for 10 micro seconds
-  digitalWrite(TRIG_PIN, HIGH);
+  digitalWrite(trigPin, HIGH);
   delayMicroseconds(10);
-  digitalWrite(TRIG_PIN, LOW);
+  digitalWrite(trigPin, LOW);
   
   // Reads the echoPin, returns the sound wave travel time in microseconds
-  duration = pulseIn(ECHO_PIN, HIGH);
+  duration = pulseIn(echoPin, HIGH);
   // Calculating the distance
   distance= duration*SOS/2;
+  
+  return distance;
+}
+
+void loop() {
+  float distance = getDistance();
   // Prints the distance on the Serial Monitor
   Serial.print("Distance: ");
   Serial.println(distance);
+  
+  if (distance > 20) {
+    setMotor(motor1, 255);
+    setMotor(motor2, 255);
+    setMotor(motor3, 255);
+    setMotor(motor4, 255);
+  } else {
+    setMotor(motor1, -255);
+    setMotor(motor2, -255);
+    setMotor(motor3, -255);
+    setMotor(motor4, -255);
+  }
 }
