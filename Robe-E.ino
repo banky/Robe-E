@@ -1,14 +1,15 @@
 #include <Servo.h>
+#include <AFMotor.h>  // Motor shield library
 
-#include <AFMotor.h>  // Motor shield lib
-
-#define M_R 0.4 //Ratio of motor speeds to motor 1
+#define M_R 0.4       //Ratio of motor speeds copared to motor 1 (compensating for
 
 int trigPin = A0;
 int echoPin = A1;
 int servoPin = 9;
 int maxSpeed = 200;
-int distanceThreshold = 20;
+int minDistance = 20;
+int distanceThreshold = 5;
+int angleIncrement = 5;
 
 
 const float SOS = 0.034; // Speed of sound
@@ -23,33 +24,29 @@ void setup() {
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
   Serial.begin(9600);
-
   neck.attach(servoPin);
 }
 
-/*
- * Set the speed of a motor. mSpeed value is between -200 and 200
- */
+/* Set the speed of a motor. mSpeed value is between -200 and 200 */
 void setMotor(AF_DCMotor motor, float mSpeed) {
   if(mSpeed > 0) {
-    motor.run(FORWARD); // Lets go forward! 
+    motor.run(FORWARD);     //Forward 
   } else if (mSpeed < 0) {
-    motor.run(BACKWARD); // Lets go backward!
+    motor.run(BACKWARD);    //Backwards
   } else {
-    motor.run(RELEASE); // Stop motor
+    motor.run(RELEASE);     //Stop
   }
-
+  
   motor.setSpeed(abs(mSpeed));
 }
 
+/* Turn the servo to a given angle */
 void setServo(Servo servo, float angle) {
   servo.write(angle);
   delay(15);
 }
 
-/*
- * Get the distance read by the ultrasonic sensor
- */
+/* Get the distance read by the ultrasonic sensor */
 float getDistance() {
   long duration = 0;
   float distance = 0;
@@ -71,25 +68,67 @@ float getDistance() {
   return distance;
 }
 
-void rotateToAngle(int angle, float distance) {
-  if (distance < distanceThreshold){
-    //Rotate until you find distance bigger than the threshold
-    int curDist = 0;
+/* Turns the robot to face the direction in which it should continue moving forward
+ * Turns left or right based on the angle
+ * Determiines position based on where the maximum distance was found */
+void rotateToPosition(int angle, float distance) {
+
+  //When no distance is found above the minimum threshold turn left until a distance above the threshold is found
+  if (distance < minDistance){ 
+    int curDist = 0;   
     do{
-      turnInPlace(maxSpeed);
+      turnInPlace(true, maxSpeed);
       curDist = getDistance();  
-    } while (curDistance <= distanceThreshold);    
+    } while (curDist <= minDistance); 
+      
+    //// turn a little extra to make sure robot clears the obstacle? ///
+  }
+  
+  //When a maximum distance is found above the distance threshold turn until that distance is found again 
+  else{     
+    if (angle < 90){
+      //Turn right
+    }    
+    else if (angle > 90){
+      //Turn left
+    } 
+
+    /* If angle == 90 && distance > minDistance
+     * Robot should just continue going straight
+     * This should never happen since robot would have been going straight when an obstacle was detected at the min distance */    
   }
 
-  //check if angle < or > than 90
-  //turn left or right according to angle compared to 90
-  //while turning measure current distance
-  //stop turning whin the distance is within a certain threshold of the target distance
-  //kick out
-
-  //additional edge cases  
+  /// Additional edge cases ? ///  
 }
 
+/* Turn the robot until a distance within the threshold of the target distance is found */
+  int curDist = 0;
+  do{
+    turnInPlace(isLeft, maxSpeed);
+    curDist = getDistance(); 
+  }while(curDist <= (targetDistance - distanceThreshold) || curDist >= (targetDistance + distanceThreshold));
+
+  //// turn a little extra to make sure robot clears the obstacle? ///
+  
+}
+
+/* Move robot forward */
+void goForward(int speed) {
+  setMotor(frontLeft, speed);
+  setMotor(backLeft, speed);
+  setMotor(backRight, 0);
+  setMotor(frontRight, 0);
+}
+
+/* Stop movememnt of robot */
+void stopMoving() {
+  setMotor(frontLeft, 0);
+  setMotor(backLeft, 0);
+  setMotor(backRight, 0);
+  setMotor(frontRight, 0);
+}
+
+/* Turn robot to the left while also moving forward */
 void turnLeft(int speed) {
   setMotor(frontLeft, speed);
   setMotor(backLeft, speed);
@@ -97,6 +136,7 @@ void turnLeft(int speed) {
   setMotor(frontRight, 0);
 }
 
+/* Turn robot to the right while also moving forward */
 void turnRight(int speed) {
   setMotor(frontLeft, 0);
   setMotor(backLeft, 0);
@@ -104,13 +144,16 @@ void turnRight(int speed) {
   setMotor(frontRight, speed);
 }
 
+/* Turn robot to the left or right without moving forward */
 void turnInPlace(bool isLeft, int speed) {
+  //Turn left
   if (isLeft){
     setMotor(frontLeft, speed);
     setMotor(backLeft, speed);
     setMotor(backRight, -speed);
     setMotor(frontRight, -speed);
   }
+  //Turn right
   else{
     setMotor(frontLeft, -speed);
     setMotor(backLeft, -speed);
@@ -119,70 +162,62 @@ void turnInPlace(bool isLeft, int speed) {
   } 
 }
 
-void loop() {
-  float distance = getDistance();
-  const int threshold = 20;
-
-  turnLeft(200);
-  delay (5000);
-  turnRight(200);
-  delay(5000);
-  turnInPlace(true, 200);
-  delay(5000);
-  turnInPlace(false, 200);
-  delay(5000);
+/* Find the angle with the furthest correlating distance infront of the robot */
+void findMaxDistance(int &angleMaxDistance, float &maxDistance){
+  maxDistance = 0;
+  float currentDistance;
   
-  /*
-  // Prints the distance on the Serial Monitor
-//  Serial.print("Distance: ");
-//  Serial.println(distance);
-
-  setServo(neck, 90);
-  while (distance > threshold) {
-//    setMotor(frontLeft, 200);
-//    setMotor(backLeft, 200);
-//    setMotor(backRight, 200);
-//    setMotor(frontRight, 200);
-
-    distance = getDistance();
-    Serial.println("dancing on the moon");
-  }
-
-    // STOP!!!
-    setMotor(frontLeft, 0);
-    setMotor(backLeft, 0);
-    setMotor(backRight, 0);
-    setMotor(frontRight, 0);
-
-    // LOOK AROUND!!
-    setServo(neck, 0);
-    float md = 0; // Maximum distance
-    int angleAtMd = 0; // Angle at maximum distance
-    int increment = 5; // Angle between 
-
-    for (unsigned int cAngle = 0; cAngle < 180; cAngle += increment) {
-      setServo(neck, cAngle);
-      float cDist = getDistance();
-      if (cDist > md) {
-        md = cDist;
-        angleAtMd = cAngle;
-      }
-      Serial.print("Current Distance: ");
-      Serial.println(cDist);
-      Serial.print("Current Angle: ");
-      Serial.println(cAngle);
-      
+  for (unsigned int currentAngle = 0; currentAngle < 180; currentAngle += angleIncrement) {
+    setServo(neck, currentAngle);
+    currentDistance = getDistance();
+    
+    if (currentDistance > maxDistance) {
+      maxDistance = currentDistance;
+      angleMaxDistance = currentAngle;
     }
 
-    setServo(neck, 90);
+    //Output current distance and angle found
+    Serial.print("Current Distance: ");
+    Serial.println(currentDistance);
+    Serial.print("Current Angle: ");
+    Serial.println(currentAngle);
+    
+  }
 
-    Serial.print("Max Distance: ");
-    Serial.println(md);
-    Serial.print("Max Angle: ");
-    Serial.println(angleAtMd);
-    delay(50000);
-    exit(0);
+  //Return sensor to forward direction
+  setServo(neck, 90);
 
-    rotateToAngle(angleAtMd);
-    */
+  //Output max distance and angle found
+  Serial.print("Max Distance: ");
+  Serial.println(maxDistance);
+  Serial.print("Max Angle: ");
+  Serial.println(angleMaxDistance);
+  
+  delay(1000);  
+}
+
+void loop() {
+  float distance = getDistance();
+  float maxDistance = 0;
+  int angleMaxDistance = 0;
+  
+  //Set the ultrasonic sensor to face straight ahead
+  setServo(neck, 90);
+
+  //Go forward until an obstacle near by is detected
+  while (distance > minDistance) {
+    goForward(maxSpeed);
+    distance = getDistance();
+    Serial.println("No obstacles detected");
+  }
+
+  //Stop and output the distance to the obstacle found
+  stopMoving();
+  Serial.print("Obstacle found: ");
+  Serial.println(getDistance());
+
+  //Determine the the furthest distance in front of robot and at what angle it was found
+  findMaxDistance(angleMaxDistance, maxDistance);
+  //Rotate the robot to the position where the max distance was found
+  rotateToPosition(angleMaxDistance, maxDistance);
 }
