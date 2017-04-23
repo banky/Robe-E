@@ -88,9 +88,11 @@ void rotateToPosition(int angle, float distance) {
   else{     
     if (angle < 90){
       //Turn right
+      turnUntil(false, distance);
     }    
     else if (angle > 90){
       //Turn left
+      turnUntil(true, distance);
     } 
 
     /* If angle == 90 && distance > minDistance
@@ -102,6 +104,7 @@ void rotateToPosition(int angle, float distance) {
 }
 
 /* Turn the robot until a distance within the threshold of the target distance is found */
+void turnUntil (bool isLeft, int targetDistance){
   int curDist = 0;
   do{
     turnInPlace(isLeft, maxSpeed);
